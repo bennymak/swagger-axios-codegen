@@ -95,13 +95,13 @@ function requestHeader() {
   export function axios(configs: IRequestConfig, resolve: (p: any) => void, reject: (p: any) => void): Promise<any> {
     if (serviceOptions.axios) {
       return serviceOptions.axios.request(configs).then(res => {
-        resolve(res.data);
+        resolve(res);
       })
         .catch(err => {
           reject(err);
         });
     } else {
-      throw new Error('please inject yourself instance like axios  ')
+      throw new Error('please inject an axios instance')
     }
   }
   
