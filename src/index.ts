@@ -38,7 +38,7 @@ const defaultOptions: ISwaggerOptions = {
 
 /** main */
 export async function codegen(params: ISwaggerOptions) {
-  console.time('finish')
+  console.time(`finish ${params.fileName}`)
   let err
   let swaggerSource: ISwaggerSource
   setDefinedGenericTypes(params.extendGenericType)
@@ -167,7 +167,7 @@ export async function codegen(params: ISwaggerOptions) {
   if (fs.existsSync('./cache_swagger.json')) {
     fs.unlinkSync('./cache_swagger.json')
   }
-  console.timeEnd('finish')
+  console.timeEnd(`finish ${params.fileName}`)
   if (err) {
     throw err
   }
