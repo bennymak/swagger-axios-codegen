@@ -61,11 +61,23 @@ export async function codegen(params: ISwaggerOptions) {
     ...defaultOptions,
     ...params
   }
-  let apiSource = options.useCustomerRequestInstance ? customerServiceHeader(options) : serviceHeader(options)
+  let apiSource = options.useCustomerRequestInstance ? customerServiceHeader(options, swaggerSource.basePath) : serviceHeader(options, swaggerSource.basePath)
   // 判断是否是openApi3.0或者swagger3.0
   const isV3 = isOpenApi3(params.openApi || swaggerSource.openapi || swaggerSource.swagger)
-  console.log('isV3', isV3)
-  let requestClass = requestCodegen(swaggerSource.paths, isV3, options)
+
+  // TODO: use filter plugin
+  // 根据url过滤
+  let paths = swaggerSource.paths
+  if (options.urlFilters?.length > 0) {
+    paths = {}
+    Object.keys(swaggerSource.paths).forEach(path => {
+      if (options.urlFilters.some(urlFilter => urlFilter.indexOf(path) > -1)) {
+        paths[path] = swaggerSource.paths[path]
+      }
+    })
+  }
+
+  let requestClass = requestCodegen(paths, isV3, options)
   // let requestClasses = Object.entries(requestCodegen(swaggerSource.paths, isV3, options))
 
   const { models, enums } = isV3
@@ -77,16 +89,15 @@ export async function codegen(params: ISwaggerOptions) {
   // TODO: next next next time
   if (options.multipleFileMode) {
     // if (true) {
-
     Object.entries(requestCodegen(swaggerSource.paths, isV3, options)).forEach(([className, requests]) => {
       let text = ''
       let allImport: string[] = []
       requests.forEach(req => {
         const reqName = options.methodNameMode == 'operationId' ? req.operationId : req.name
-        // if ('getAuthorizedDeviceSet' === reqName) {
-        //   console.log('req.requestSchema.parsedParameters.imports', JSON.stringify(req.requestSchema.parsedParameters.imports));
+        if ('register' === reqName) {
+          console.log('req.requestSchema.parsedParameters.imports', JSON.stringify(req.requestSchema.parsedParameters.imports));
 
-        // }
+        }
         text += requestTemplate(reqName, req.requestSchema, options)
         let imports = findDeepRefs(req.requestSchema.parsedParameters.imports, _allModel, _allEnum)
         allImport = allImport.concat(imports)
@@ -104,13 +115,8 @@ export async function codegen(params: ISwaggerOptions) {
     })
 
     let defsString = ''
-    Object.values(enums).forEach(item => {
-      const text = item.value ? enumTemplate(item.value.name, item.value.enumProps, 'Enum') : item.content || ''
 
-      // const fileDir = path.join(options.outputDir || '', 'definitions')
-      // writeFile(fileDir, item.name + '.ts', format(text, options))
-      defsString += text
-    })
+
 
     Object.values(models).forEach(item => {
       const text =
@@ -128,13 +134,34 @@ export async function codegen(params: ISwaggerOptions) {
       // writeFile(fileDir, item.name + '.ts', format(text, options))
       defsString += text
     })
+
+    Object.values(enums).forEach(item => {
+      // const text = item.value ? enumTemplate(item.value.name, item.value.enumProps, 'Enum') : item.content || ''
+
+      let text = ''
+      if (item.value) {
+        if (item.value.type == 'string') {
+          text = enumTemplate(item.value.name, item.value.enumProps, options.enumNamePrefix)
+        } else {
+          text = typeTemplate(item.value.name, item.value.enumProps, options.enumNamePrefix)
+        }
+      } else {
+        text = item.content || ''
+      }
+      defsString += text
+
+    })
+
+
     defsString = apiSource + defsString
     writeFile(options.outputDir || '', 'index.defs.ts', format(defsString, options))
 
   } else if (options.include && options.include.length > 0) {
+    // TODO: use filter plugin
     // codegenInclude(apiSource, options, requestClass, models, enums)
     codegenMultimatchInclude(apiSource, options, requestClass, models, enums)
-  } else {
+  }
+  else {
     codegenAll(apiSource, options, requestClass, models, enums)
   }
   if (fs.existsSync('./cache_swagger.json')) {

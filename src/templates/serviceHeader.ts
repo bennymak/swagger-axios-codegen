@@ -2,8 +2,9 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { ISwaggerOptions } from "../baseInterfaces";
 import { abpGenericTypeDefinition, universalGenericTypeDefinition } from './genericTypeDefinitionTemplate';
+import { trimString } from '../utils';
 
-export function serviceHeader(options: ISwaggerOptions) {
+export function serviceHeader(options: ISwaggerOptions, basePath: string) {
   const classTransformerImport = options.useClassTransformer
     ? `import { Expose, Transform, Type, plainToClass } from 'class-transformer';
   ` : '';
@@ -12,6 +13,7 @@ export function serviceHeader(options: ISwaggerOptions) {
   /* eslint-disable */
   import axiosStatic, { AxiosInstance } from 'axios';
 
+  const basePath = '${trimString(basePath, '/', 'right')}'
   ${classTransformerImport}
 
   export interface IRequestOptions {
@@ -40,7 +42,7 @@ export function serviceHeader(options: ISwaggerOptions) {
 
 
 
-export function customerServiceHeader(options: ISwaggerOptions) {
+export function customerServiceHeader(options: ISwaggerOptions, basePath: string) {
 
   return `/** Generate by swagger-axios-codegen */
   // tslint:disable
@@ -74,6 +76,8 @@ export function customerServiceHeader(options: ISwaggerOptions) {
     params?: any;
   }
 
+  const basePath = '${basePath}'
+
   // Add options interface
   export interface ServiceOptions {
     axios?: IRequestInstance,
@@ -106,6 +110,7 @@ function requestHeader() {
   }
   
   export function getConfigs(method: string, contentType: string, url: string,options: any):IRequestConfig {
+    url = basePath + url
     const configs: IRequestConfig = { ...options, method, url };
     configs.headers = {
       ...options.headers,

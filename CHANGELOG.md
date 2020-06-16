@@ -1,4 +1,25 @@
 
+### 0.11.2
+
+- feat: make the basePath of swagger2.0 take effect 
+
+### 0.11.0
+
+- feat: add url filter
+- fix openapi v3 formdata (#100)
+
+### 0.10.5
+
+- feat: anyOf, allOf (#96)
+
+### 0.10.3
+
+- fix multipart/form-data generation V3 
+
+### 0.10.2
+
+- fix multiple files mode in openApi v3
+
 ### 0.10.0
 
 - feature: Implementing multiple files mode when `options.multipleFileMode=true`

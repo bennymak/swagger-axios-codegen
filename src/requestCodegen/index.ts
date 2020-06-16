@@ -6,6 +6,8 @@ import camelcase from 'camelcase'
 import { isNullOrUndefined } from 'util'
 import { getRequestBody } from './getRequestBody'
 import { ISwaggerOptions } from '../baseInterfaces'
+import { getContentType } from './getContentType'
+import { mapFormDataToV2 } from './mapFormDataToV2'
 
 export interface IRequestClass {
   [key: string]: IRequestMethods[];
@@ -26,13 +28,10 @@ export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOp
       for (const [method, reqProps] of Object.entries(request)) {
         methodName = options.methodNameMode === 'operationId' ? reqProps.operationId : methodName
         if (!methodName) {
-          console.warn('method Name is null：', path);
+          // console.warn('method Name is null：', path);
           continue;
         }
-        const contentType =
-          reqProps.consumes && reqProps.consumes.includes('multipart/form-data')
-            ? 'multipart/form-data'
-            : 'application/json'
+        const contentType = getContentType(reqProps, isV3)
         let formData = ''
         let pathReplace = ''
         // 获取类名
@@ -48,11 +47,22 @@ export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOp
         let parsedParameters: any = {
           requestParameters: ''
         }
-        if (reqProps.parameters) {
-          // 获取到接口的参数
-          parsedParameters = getRequestParameters(reqProps.parameters)
 
-          formData = parsedParameters.requestFormData ? 'data = new FormData();\n' + parsedParameters.requestFormData : ''
+        const multipartDataProperties = reqProps?.requestBody?.content['multipart/form-data']
+
+        if (reqProps.parameters || multipartDataProperties) {
+          // 获取到接口的参数
+          let tempParameters = reqProps.parameters || []
+
+          // 合并两个参数类型
+          if (multipartDataProperties) {
+            tempParameters = tempParameters.concat(mapFormDataToV2(multipartDataProperties.schema))
+          }
+
+          parsedParameters = getRequestParameters(tempParameters)
+          formData = parsedParameters.requestFormData
+            ? 'data = new FormData();\n' + parsedParameters.requestFormData
+            : ''
           pathReplace = parsedParameters.requestPathReplace
         }
 
@@ -63,14 +73,17 @@ export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOp
           parsedRequestBody = getRequestBody(reqProps.requestBody)
 
           // 合并imports
-          if (parsedParameters.imports) {
+          if (parsedRequestBody.imports?.length >= 0) {
+            // console.log("requestBody ", parsedRequestBody);
             imports.push(...parsedRequestBody.imports)
           }
 
           parsedParameters.requestParameters = parsedParameters.requestParameters
             ? parsedParameters.requestParameters + parsedRequestBody.bodyType
             : parsedRequestBody.bodyType
+
         }
+
 
         parameters =
           parsedParameters.requestParameters?.length > 0
